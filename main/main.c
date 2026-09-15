@@ -23,20 +23,6 @@
 static const char *TAG = "main";
 
 static const demo_entry_t DEMOS[] = {
-    { .name = "Display", .enter = demo_display_enter, .exit = demo_display_exit,
-      .key = demo_display_key },
-    { .name = "Button", .enter = demo_button_enter, .exit = demo_button_exit,
-      .key = demo_button_key },
-    { .name = "Audio", .enter = demo_audio_enter, .exit = demo_audio_exit,
-      .key = demo_audio_key, .start = demo_audio_start, .stop = demo_audio_stop },
-    { .name = "Battery", .enter = demo_battery_enter, .exit = demo_battery_exit,
-      .key = demo_battery_key },
-    { .name = "Wi-Fi", .enter = demo_wifi_enter, .exit = demo_wifi_exit,
-      .key = demo_wifi_key, .start = demo_wifi_start, .stop = demo_wifi_stop },
-    { .name = "BLE", .enter = demo_ble_enter, .exit = demo_ble_exit,
-      .key = demo_ble_key, .start = demo_ble_start, .stop = demo_ble_stop },
-    { .name = "Low Power", .enter = demo_low_power_enter, .exit = demo_low_power_exit,
-      .key = demo_low_power_key, .start = demo_low_power_start, .stop = demo_low_power_stop },
     { .name = "Voice Jump", .enter = demo_voice_jump_enter, .exit = demo_voice_jump_exit,
       .key = demo_voice_jump_key, .start = demo_voice_jump_start, .stop = demo_voice_jump_stop },
 };
@@ -215,23 +201,18 @@ void app_main(void) {
     demo_navigation_init(&s_navigation, DEMO_COUNT);
 
     // 其余外设单项失败不阻塞:菜单里标 [FAIL],其他项照常可测。
-    s_ok[0] = true;                                   // Display 已确认可用
+    s_ok[0] = true;                                   // Voice Jump 页面内按需初始化
     esp_err_t input_err = input_dispatch_init();
     esp_err_t button_err = input_err == ESP_OK
                          ? bsp_button_init(on_key, NULL)
                          : ESP_ERR_INVALID_STATE;
-    s_ok[1] = input_err == ESP_OK && button_err == ESP_OK;
     if (input_err != ESP_OK) {
         ESP_LOGE(TAG, "按键事件任务创建失败: %s", esp_err_to_name(input_err));
     } else if (button_err != ESP_OK) {
         ESP_LOGE(TAG, "按键初始化失败: %s", esp_err_to_name(button_err));
         input_dispatch_deinit();
     }
-    s_ok[2] = (bsp_audio_init() == ESP_OK);
-    s_ok[3] = (bsp_battery_init() == ESP_OK);
-    s_ok[4] = true;                                    // 页面内按需初始化并显示错误
-    s_ok[5] = true;
-    s_ok[6] = true;
+    bsp_audio_init();
 
     if (bsp_lvgl_lock(1000)) {
         enter_menu();
@@ -239,6 +220,5 @@ void app_main(void) {
         s_input_ready = true;
     }
 
-    ESP_LOGI(TAG, "就绪:Display=%d Button=%d Audio=%d Battery=%d",
-             s_ok[0], s_ok[1], s_ok[2], s_ok[3]);
+    ESP_LOGI(TAG, "就绪:Voice Jump=%d", s_ok[0]);
 }

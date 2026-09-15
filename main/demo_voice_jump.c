@@ -62,8 +62,8 @@ static lv_obj_t *s_player;
 static lv_obj_t *s_obst_ui[VJ_OBST_MAX];
 static lv_obj_t *s_score_label, *s_best_label, *s_battery_label;
 static lv_obj_t *s_bar_fill;
-static lv_obj_t *s_ready_panel, *s_ready_hint, *s_ready_best;
-static lv_obj_t *s_dead_panel, *s_dead_score, *s_dead_best, *s_dead_extra;
+static lv_obj_t *s_ready_panel, *s_ready_shadow, *s_ready_hint, *s_ready_best;
+static lv_obj_t *s_dead_panel, *s_dead_shadow, *s_dead_score, *s_dead_best, *s_dead_extra;
 
 static TaskHandle_t s_game_task, s_audio_task;
 static SemaphoreHandle_t s_stopped;   // 计数信号量:每个任务退出各 give 一次
@@ -266,13 +266,19 @@ static void vj_render(int tick)
     // 面板可见性随状态切换(add/remove flag 幂等且廉价)
     if (s_game.state == VJ_STATE_READY) {
         lv_obj_remove_flag(s_ready_panel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(s_ready_shadow, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_dead_panel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(s_dead_shadow, LV_OBJ_FLAG_HIDDEN);
     } else if (s_game.state == VJ_STATE_DEAD) {
         lv_obj_add_flag(s_ready_panel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(s_ready_shadow, LV_OBJ_FLAG_HIDDEN);
         lv_obj_remove_flag(s_dead_panel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(s_dead_shadow, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_obj_add_flag(s_ready_panel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(s_ready_shadow, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_dead_panel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(s_dead_shadow, LV_OBJ_FLAG_HIDDEN);
     }
 
     bsp_lvgl_unlock();
@@ -405,9 +411,14 @@ void demo_voice_jump_enter(void)
     lv_obj_set_style_pad_all(frame, 0, 0);
     s_bar_fill = vj_block(frame, 2, VJ_BAR_H - 1, VJ_BAR_W - 4, 1, UI_YELLOW);
 
-    // READY 面板
-    s_ready_panel = ui_pixel_panel_create(s_scr, VJ_PANEL_X, VJ_PANEL_Y,
-                                          VJ_PANEL_W, VJ_PANEL_H, UI_PAPER);
+    // READY 面板(手动创建阴影+面板,以便一起隐藏)
+    s_ready_shadow = vj_block(s_scr, VJ_PANEL_X + 5, VJ_PANEL_Y + 6,
+                               VJ_PANEL_W, VJ_PANEL_H, UI_INK);
+    s_ready_panel = vj_block(s_scr, VJ_PANEL_X, VJ_PANEL_Y,
+                              VJ_PANEL_W, VJ_PANEL_H, UI_PAPER);
+    lv_obj_set_style_border_color(s_ready_panel, lv_color_hex(UI_INK), 0);
+    lv_obj_set_style_border_width(s_ready_panel, 4, 0);
+    lv_obj_set_style_pad_all(s_ready_panel, 7, 0);
     vj_centered_line(s_ready_panel, "VOICE JUMPER", &lv_font_montserrat_20, UI_INK, 8);
     vj_centered_line(s_ready_panel, "SHOUT = FLY", &lv_font_montserrat_14, UI_INK, 40);
     vj_centered_line(s_ready_panel, "QUIET = FALL", &lv_font_montserrat_14, UI_INK, 60);
@@ -416,9 +427,14 @@ void demo_voice_jump_enter(void)
     s_ready_hint = vj_centered_line(s_ready_panel, "OK: START",
                                     &lv_font_montserrat_14, UI_RED, 104);
 
-    // 结算面板(默认隐藏)
-    s_dead_panel = ui_pixel_panel_create(s_scr, VJ_PANEL_X, VJ_PANEL_Y,
-                                         VJ_PANEL_W, VJ_PANEL_H, UI_PAPER);
+    // 结算面板(默认隐藏,手动创建阴影+面板)
+    s_dead_shadow = vj_block(s_scr, VJ_PANEL_X + 5, VJ_PANEL_Y + 6,
+                              VJ_PANEL_W, VJ_PANEL_H, UI_INK);
+    s_dead_panel = vj_block(s_scr, VJ_PANEL_X, VJ_PANEL_Y,
+                             VJ_PANEL_W, VJ_PANEL_H, UI_PAPER);
+    lv_obj_set_style_border_color(s_dead_panel, lv_color_hex(UI_INK), 0);
+    lv_obj_set_style_border_width(s_dead_panel, 4, 0);
+    lv_obj_set_style_pad_all(s_dead_panel, 7, 0);
     vj_centered_line(s_dead_panel, "GAME OVER", &lv_font_montserrat_20, UI_INK, 8);
     s_dead_score = vj_centered_line(s_dead_panel, "SCORE 0",
                                     &lv_font_montserrat_14, UI_INK, 44);
@@ -427,6 +443,7 @@ void demo_voice_jump_enter(void)
     s_dead_extra = vj_centered_line(s_dead_panel, "OK: RETRY",
                                    &lv_font_montserrat_14, UI_RED, 92);
     lv_obj_add_flag(s_dead_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(s_dead_shadow, LV_OBJ_FLAG_HIDDEN);
 
     // 模型初始化并读入历史最高分(音频不可用时页面仍可浏览)
     vj_game_t fresh = {0};
@@ -511,8 +528,8 @@ void demo_voice_jump_exit(void)
     s_player = NULL;
     s_score_label = s_best_label = s_battery_label = NULL;
     s_bar_fill = NULL;
-    s_ready_panel = s_ready_hint = s_ready_best = NULL;
-    s_dead_panel = s_dead_score = s_dead_best = s_dead_extra = NULL;
+    s_ready_panel = s_ready_shadow = s_ready_hint = s_ready_best = NULL;
+    s_dead_panel = s_dead_shadow = s_dead_score = s_dead_best = s_dead_extra = NULL;
     for (int i = 0; i < VJ_OBST_MAX; i++) s_obst_ui[i] = NULL;
 }
 
